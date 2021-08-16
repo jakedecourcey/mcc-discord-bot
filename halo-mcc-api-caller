@@ -18,7 +18,14 @@ def getCommand(body):
   print(body["data"]["name"])
   return body["data"]["name"]
 
-def callMccApi(gamertag):
+def processRequest(command, gamertag):
+  if command == "stats":
+    return formatStats(callStats(gamertag))
+
+  elif command == "performance":
+    return formatPerf(callPerf(gamertag))
+
+def callStats(gamertag):
   url = f"https://halo.api.stdlib.com/mcc@0.1.0/stats/"
   headers = {"content-type":"application/json"}
   r = requests.post(url + '?gamertag=' + gamertag, headers = headers)
@@ -27,7 +34,7 @@ def callMccApi(gamertag):
 
 def formatStats(stats):
   formatted = ""
-  stats = json.loads(stats)
+  stats = json.loads(stats[1])
   print(stats)
   print(type(stats))
   try:
@@ -39,6 +46,72 @@ def formatStats(stats):
   for key in stats:
     formatted = formatted + "\n" + f"**{key}**: " + str(stats[key])
   formatted = formatted + "\n" + emblem
+  return formatted
+
+def callPerf(gamertag):
+  stats = {"gamertag":gamertag, "evaluation":"fine"}
+
+  #collect lifetime stats
+  input = json.loads(callStats(gamertag)[1])
+  stats["kdl"] = round(input["killDeathRatio"], 2)
+  stats["wll"] = round(input["winRatio"], 2)
+  stats["kpgl"] = round(input["killsPerGame"], 2)
+  stats["dpgl"] = round(input["deathsPerGame"], 2)
+
+  #collect 100 game stats
+  input = json.loads(callHistory(gamertag, "100"))
+  stats["kd100"] = round(input["summary"]["killDeathRatio"], 2)
+  stats["kpg100"] = round(input["summary"]["killsPerGame"], 2)
+  stats["dpg100"] = round(input["summary"]["deathsPerGame"], 2)
+  stats["apg100"] = round(input["summary"]["assistsPerGame"], 2)
+  stats["hshot100"] = round(input["summary"]["headshotRate"], 2)
+  stats["days100"] = list(input["games"])[-1]["playedAtRecency"]
+  wins = 0
+  for key in input["games"]:
+    if key["won"]:
+      wins += 1
+  stats["wl100"] = round(wins/100, 2)
+
+  #collect 10 game stats
+  input = json.loads(callHistory(gamertag, "10"))
+  stats["kd10"] = round(input["summary"]["killDeathRatio"], 2)
+  stats["kpg10"] = round(input["summary"]["killsPerGame"], 2)
+  stats["dpg10"] = round(input["summary"]["deathsPerGame"], 2)
+  stats["apg10"] = round(input["summary"]["assistsPerGame"], 2)
+  stats["hshot10"] = round(input["summary"]["headshotRate"], 2)
+  stats["days10"] = list(input["games"])[-1]["playedAtRecency"]
+  wins = 0
+  for key in input["games"]:
+    if key["won"]:
+      wins += 1
+  stats["wl10"] = round(wins/10, 2)
+
+  return stats
+  
+def callHistory(gamertag, games):
+  url = f"https://halo.api.stdlib.com/mcc@0.1.0/games/history/"
+  headers = {"content-type":"application/json"}
+  r = requests.post(url + '?gamertag=' + gamertag + '&count=' + games, headers = headers)
+  print(r.text)
+  return r.text
+
+def formatPerf(stats):
+  print(stats)
+  formatted = f"""
+  **Performance stats for {stats['gamertag']}**
+  ```
+  stat     |  last10  | last100  | lifetime
+  ---------|----------|----------|---------
+  k/d      | {stats['kd10']:5}    | {stats['kd100']:5}    | {stats['kdl']:5}       
+  w/l      | {stats['wl10']:5}    | {stats['wl100']:5}    | {stats['wll']:5}       
+  kpg      | {stats['kpg10']:5}    | {stats['kpg100']:5}    | {stats['kpgl']:5}       
+  dpg      | {stats['dpg10']:5}    | {stats['dpg100']:5}    | {stats['dpgl']:5}       
+  apg      | {stats['apg10']:5}    | {stats['apg100']:5}    |   N/A       
+  hshot%   | {stats['hshot10']:5}    | {stats['hshot100']:5}    |   N/A
+
+  You played your 100th previous game {stats['days100']}.
+  You played your 10th previous game {stats['days10']}.
+  ```"""
   return formatted
 
 def returnCallToDiscord(token, message):
@@ -58,14 +131,19 @@ def lambda_handler(event, context):
   command = getCommand(body)
 
   # confirm stats exist
-  apiCheck = callMccApi(gamertag)
+  apiCheck = callStats(gamertag)
   print(apiCheck)
   if "403" in str(apiCheck[0]):
     message = f"**gamertag**: {gamertag} not found. Check your spelling, you airheaded, dim-witted vegetable."
   elif "has not played" in json.loads(apiCheck[1])["gamertag"]:
     message = '**gamertag**: ' + gamertag + ' has never played Halo: MCC or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
+
+  # main body
   elif "200" in str(apiCheck[0]):
-    message = formatStats(apiCheck[1])
+    print(f"{gamertag} found")
+    print(gamertag, command)
+    message = processRequest(command, gamertag)
+
   else:
     message = "Unknown technical error."
   returnCallToDiscord(token, message)
