@@ -63,7 +63,7 @@ def lambda_handler(event, context):
   if "403" in str(apiCheck[0]):
     message = f"**gamertag**: {gamertag} not found. Check your spelling, you airheaded, dim-witted vegetable."
   elif "has not played" in json.loads(apiCheck[1])["gamertag"]:
-    message = '**gamertag**: ' + str(stats["gamertag"]) + ' or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
+    message = '**gamertag**: ' + gamertag + ' has never played Halo: MCC or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
   elif "200" in str(apiCheck[0]):
     message = formatStats(apiCheck[1])
   else:
