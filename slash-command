@@ -1,0 +1,20 @@
+import requests
+
+url = "https://discord.com/api/v8/applications/876326120826470411/guilds/876325260721537044/commands"
+
+json = {
+    "name": "stats",
+    "type": 1,
+    "description": "Lookup MCC Stats",
+    "options": [
+        {
+            "name": "gamertag",
+            "description": "Defaults to Discord username",
+            "type": 3
+        }
+    ]
+}
+
+headers = {"Authorization": "Bot ODc2MzI2MTIwODI2NDcwNDEx.YRicTA.Ygfk-e9zdzwtlIiP5ZD0lr5SZwU"}
+
+r = requests.post(url, headers=headers, json=json)

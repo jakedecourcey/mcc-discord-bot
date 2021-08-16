@@ -1,0 +1,67 @@
+import json
+import boto3
+
+from nacl.signing import VerifyKey
+from nacl.exceptions import BadSignatureError
+
+PUBLIC_KEY ='08d10270eac7d6c7b3e612cd1c1e9b6db56c827b31270d7cc4f353cc4d4c6114'
+PING_PONG = {"type": 1}
+RESPONSE_TYPES =  { 
+                    "PONG": 1, 
+                    "ACK_NO_SOURCE": 2, 
+                    "MESSAGE_NO_SOURCE": 3, 
+                    "MESSAGE_WITH_SOURCE": 4, 
+                    "ACK_WITH_SOURCE": 5
+                  }
+
+
+def verify_signature(event):
+    raw_body = event.get("rawBody")
+    auth_sig = event['params']['header'].get('x-signature-ed25519')
+    auth_ts  = event['params']['header'].get('x-signature-timestamp')
+    
+    message = auth_ts.encode() + raw_body.encode()
+    verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
+    verify_key.verify(message, bytes.fromhex(auth_sig)) # raises an error if unequal
+
+def ping_pong(body):
+    if body.get("type") == 1:
+        return True
+    return False
+
+def lambda_handler(event, context):
+    print(event)
+    # verify the signature
+    try:
+        verify_signature(event)
+    except Exception as e:
+        raise Exception(f"[UNAUTHORIZED] Invalid request signature: {e}")
+
+    # check if message is a ping
+    body = event.get('body-json')
+    if ping_pong(body):
+        return PING_PONG
+    
+    payload = event
+    #payload["gamertag"] = str(getUsername(body))
+    #payload["token"] = str(getToken(body))
+    #payload["command"] = str(getCommand(body))
+
+
+    # send payload to next lambda
+    lambda_client = boto3.client("lambda")
+    response = lambda_client.invoke(
+	FunctionName='halo-mcc-api-caller',
+	InvocationType='Event',
+	LogType='None',
+        Payload = json.dumps(payload)
+    )
+    print(response)
+    
+    # respond to discord and tell it to wait
+    return {
+            "type": 5,
+            "data": {
+                "tts": False,
+            }
+        }
