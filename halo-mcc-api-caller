@@ -4,51 +4,67 @@ import json
 application_id = "876326120826470411"
 
 def getGamertag(body):
-    if "options" in body["data"]:
-      return body["data"]["options"][0]["value"]
-    return body["member"]["user"]["username"]
+  if "options" in body["data"]:
+    print(body["data"]["options"][0]["value"])
+    return body["data"]["options"][0]["value"]
+  print(body["member"]["user"]["username"])
+  return body["member"]["user"]["username"]
 
 def getToken(body):
-    print(body["token"])
-    return body["token"]
+  print(body["token"])
+  return body["token"]
 
 def getCommand(body):
-    print(body["data"]["name"])
-    return body["data"]["name"]
+  print(body["data"]["name"])
+  return body["data"]["name"]
 
 def callMccApi(command, gamertag):
-    url = f"https://halo.api.stdlib.com/mcc@0.1.0/{command}/"
-    headers = {"content-type":"application/json"}
-    r = requests.post(url + '?gamertag=' + gamertag, headers = headers)
-    return json.loads(str(r.text))
-
-def cleanStats(stats):
-    stats.pop("last20")
-    stats.pop("clantag")
-    return stats
+  url = f"https://halo.api.stdlib.com/mcc@0.1.0/{command}/"
+  headers = {"content-type":"application/json"}
+  r = requests.post(url + '?gamertag=' + gamertag, headers = headers)
+  print(r.text)
+  return r, r.text
 
 def formatOutput(stats):
-    formatted = ""
+  formatted = ""
+  stats = json.loads(stats)
+  print(stats)
+  print(type(stats))
+  if "has not played" in stats["gamertag"]:
+    formatted = '**gamertag**: ' + str(stats["gamertag"]) + ' or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
+  else: 
+    try:
+      stats.pop("last20")
+      stats.pop("clantag")
+    except KeyError:
+      return stats
     emblem = stats.pop("emblem")
     for key in stats:
       formatted = formatted + "\n" + f"**{key}**: " + str(stats[key])
     formatted = formatted + "\n" + emblem
-    return formatted
+  return formatted
 
 def returnCallToDiscord(token, message):
-    url = f"https://discord.com/api/v8/webhooks/{application_id}/{token}/messages/@original"
-    headers = {"content-type":"application/json"}
-    json = {"content":message}
-    r = requests.patch(url, headers = headers, json = json)
-    print(r.text)
-    
+  url = f"https://discord.com/api/v8/webhooks/{application_id}/{token}/messages/@original"
+  headers = {"content-type":"application/json"}
+  json = {"content":message}
+  r = requests.patch(url, headers = headers, json = json)
+  print(r.text)
+  
 def lambda_handler(event, context):
-    body = event.get('body-json')
-    print(event)
-    print(body)
-    token = getToken(body)
-    gamertag = getGamertag(body)
-    command = getCommand(body)
-    returnCallToDiscord(token,formatOutput(cleanStats(callMccApi(command, gamertag))))
-    return 0
+  body = event.get('body-json')
+  print(body)
+  token = getToken(body)
+  gamertag = getGamertag(body)
+  command = getCommand(body)
+  apiReturn = callMccApi(command, gamertag)
+  print(apiReturn)
+  if "403" in str(apiReturn[0]):
+    message = f"**gamertag**: {gamertag} not found. Check your spelling."
+  elif "200" in str(apiReturn[0]):
+    message = formatOutput(apiReturn[1])
+  else:
+    message = "Unknown technical error."
+  returnCallToDiscord(token, message)
+  return 0
 
