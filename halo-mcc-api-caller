@@ -18,30 +18,27 @@ def getCommand(body):
   print(body["data"]["name"])
   return body["data"]["name"]
 
-def callMccApi(command, gamertag):
-  url = f"https://halo.api.stdlib.com/mcc@0.1.0/{command}/"
+def callMccApi(gamertag):
+  url = f"https://halo.api.stdlib.com/mcc@0.1.0/stats/"
   headers = {"content-type":"application/json"}
   r = requests.post(url + '?gamertag=' + gamertag, headers = headers)
   print(r.text)
   return r, r.text
 
-def formatOutput(stats):
+def formatStats(stats):
   formatted = ""
   stats = json.loads(stats)
   print(stats)
   print(type(stats))
-  if "has not played" in stats["gamertag"]:
-    formatted = '**gamertag**: ' + str(stats["gamertag"]) + ' or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
-  else: 
-    try:
-      stats.pop("last20")
-      stats.pop("clantag")
-    except KeyError:
-      return stats
-    emblem = stats.pop("emblem")
-    for key in stats:
-      formatted = formatted + "\n" + f"**{key}**: " + str(stats[key])
-    formatted = formatted + "\n" + emblem
+  try:
+    stats.pop("last20")
+    stats.pop("clantag")
+  except KeyError as e:
+    print(e)
+  emblem = stats.pop("emblem")
+  for key in stats:
+    formatted = formatted + "\n" + f"**{key}**: " + str(stats[key])
+  formatted = formatted + "\n" + emblem
   return formatted
 
 def returnCallToDiscord(token, message):
@@ -54,15 +51,21 @@ def returnCallToDiscord(token, message):
 def lambda_handler(event, context):
   body = event.get('body-json')
   print(body)
+
+  # collect some initial info
   token = getToken(body)
   gamertag = getGamertag(body)
   command = getCommand(body)
-  apiReturn = callMccApi(command, gamertag)
-  print(apiReturn)
-  if "403" in str(apiReturn[0]):
-    message = f"**gamertag**: {gamertag} not found. Check your spelling."
-  elif "200" in str(apiReturn[0]):
-    message = formatOutput(apiReturn[1])
+
+  # confirm stats exist
+  apiCheck = callMccApi(gamertag)
+  print(apiCheck)
+  if "403" in str(apiCheck[0]):
+    message = f"**gamertag**: {gamertag} not found. Check your spelling, you airheaded, dim-witted vegetable."
+  elif "has not played" in json.loads(apiCheck[1])["gamertag"]:
+    message = '**gamertag**: ' + str(stats["gamertag"]) + ' or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
+  elif "200" in str(apiCheck[0]):
+    message = formatStats(apiCheck[1])
   else:
     message = "Unknown technical error."
   returnCallToDiscord(token, message)
