@@ -5,38 +5,53 @@ application_id = "876326120826470411"
 
 def getGamertag(body):
   if "options" in body["data"]:
-    print(body["data"]["options"][0]["value"])
-    return body["data"]["options"][0]["value"]
-  print(body["member"]["user"]["username"])
+    for option in body["data"]["options"]:
+      if option["name"] == "gamertag":
+        print(f"gamertag = {option['value']}")
+        return option["value"]
   return body["member"]["user"]["username"]
 
+def getGame(body):
+  if "options" in body["data"]:
+    for option in body["data"]["options"]:
+      if option["name"] == "game":
+        print(f"game = {option['value']}")
+        return option["value"]
+  return None
+
+def getGameVariant(body):
+  if "options" in body["data"]:
+    for option in body["data"]["options"]:
+      if option["name"] == "variant":
+        print(f"variant = {option['value']}")
+        return option["value"]
+  return None
+
 def getToken(body):
-  print(body["token"])
+  print(f"token = {body['token']}")
   return body["token"]
 
 def getCommand(body):
-  print(body["data"]["name"])
+  print(f"command = {body['data']['name']}")
   return body["data"]["name"]
 
-def processRequest(command, gamertag):
-  if command == "stats":
-    return formatStats(callStats(gamertag))
+def processRequest(args):
+  if args["command"] == "stats":
+    return formatStats(args["apiCheck"])
 
-  elif command == "performance":
-    return formatPerf(callPerf(gamertag))
+  elif args["command"] == "performance":
+    return formatPerf(callPerf(args))
 
 def callStats(gamertag):
   url = f"https://halo.api.stdlib.com/mcc@0.1.0/stats/"
   headers = {"content-type":"application/json"}
   r = requests.post(url + '?gamertag=' + gamertag, headers = headers)
-  print(r.text)
+  print(f"Stats call returned: {r.text}")
   return r, r.text
 
 def formatStats(stats):
   formatted = ""
   stats = json.loads(stats[1])
-  print(stats)
-  print(type(stats))
   try:
     stats.pop("last20")
     stats.pop("clantag")
@@ -48,18 +63,29 @@ def formatStats(stats):
   formatted = formatted + "\n" + emblem
   return formatted
 
-def callPerf(gamertag):
-  stats = {"gamertag":gamertag, "evaluation":"fine"}
+def callPerf(args):
+
+  stats = {"gamertag":args["gamertag"]}
+
+  if args["game"]:
+    stats["game"] = args["game"]
+  else:
+    stats["game"] = "All"
+
+  if args["gameVariant"]:
+    stats["gameVariant"] = args["gameVariant"]
+  else:
+    stats["gameVariant"] = "All"
 
   #collect lifetime stats
-  input = json.loads(callStats(gamertag)[1])
+  input = json.loads(args["apiCheck"][1])
   stats["kdl"] = round(input["killDeathRatio"], 2)
   stats["wll"] = round(input["winRatio"], 2)
   stats["kpgl"] = round(input["killsPerGame"], 2)
   stats["dpgl"] = round(input["deathsPerGame"], 2)
 
   #collect 100 game stats
-  input = json.loads(callHistory(gamertag, "100"))
+  input = json.loads(callHistory(args, "100"))
   stats["kd100"] = round(input["summary"]["killDeathRatio"], 2)
   stats["kpg100"] = round(input["summary"]["killsPerGame"], 2)
   stats["dpg100"] = round(input["summary"]["deathsPerGame"], 2)
@@ -73,7 +99,7 @@ def callPerf(gamertag):
   stats["wl100"] = round(wins/100, 2)
 
   #collect 10 game stats
-  input = json.loads(callHistory(gamertag, "10"))
+  input = json.loads(callHistory(args, "10"))
   stats["kd10"] = round(input["summary"]["killDeathRatio"], 2)
   stats["kpg10"] = round(input["summary"]["killsPerGame"], 2)
   stats["dpg10"] = round(input["summary"]["deathsPerGame"], 2)
@@ -88,26 +114,36 @@ def callPerf(gamertag):
 
   return stats
   
-def callHistory(gamertag, games):
+def callHistory(args, games):
   url = f"https://halo.api.stdlib.com/mcc@0.1.0/games/history/"
   headers = {"content-type":"application/json"}
-  r = requests.post(url + '?gamertag=' + gamertag + '&count=' + games, headers = headers)
-  print(r.text)
+
+  # extract params from json
+  params = f"?gamertag={args['gamertag']}&count={games}"
+  if args["game"]:
+    params = params + f"&game={args['game']}"
+  if args["gameVariant"]:
+    params = params + f"&gameVariant={args['gameVariant']}"
+    
+  print(f"History call params: {params}")
+  r = requests.post(url + params, headers = headers)
+  print(f"History call returned: {r.text}")
   return r.text
 
 def formatPerf(stats):
-  print(stats)
   formatted = f"""
   **Performance stats for {stats['gamertag']}**
   ```
-  stat     |  last10  | last100  | lifetime
+  Stat     |Last10    |Last100   |Lifetime
+  Game     |{stats["game"]:10}|{stats["game"]:10}| All
+  Variant  |{stats["gameVariant"]:10}|{stats["gameVariant"]:10}| All
   ---------|----------|----------|---------
-  k/d      | {stats['kd10']:5}    | {stats['kd100']:5}    | {stats['kdl']:5}       
-  w/l      | {stats['wl10']:5}    | {stats['wl100']:5}    | {stats['wll']:5}       
-  kpg      | {stats['kpg10']:5}    | {stats['kpg100']:5}    | {stats['kpgl']:5}       
-  dpg      | {stats['dpg10']:5}    | {stats['dpg100']:5}    | {stats['dpgl']:5}       
-  apg      | {stats['apg10']:5}    | {stats['apg100']:5}    |   N/A       
-  hshot%   | {stats['hshot10']:5}    | {stats['hshot100']:5}    |   N/A
+  k/d      |{stats['kd10']:10}|{stats['kd100']:10}|{stats['kdl']:10}       
+  w/l      |{stats['wl10']:10}|{stats['wl100']:10}|{stats['wll']:10}       
+  kpg      |{stats['kpg10']:10}|{stats['kpg100']:10}|{stats['kpgl']:10}       
+  dpg      |{stats['dpg10']:10}|{stats['dpg100']:10}|{stats['dpgl']:10}       
+  apg      |{stats['apg10']:10}|{stats['apg100']:10}| N/A       
+  hshot%   |{stats['hshot10']:10}|{stats['hshot100']:10}| N/A
 
   You played your 100th previous game {stats['days100']}.
   You played your 10th previous game {stats['days10']}.
@@ -119,30 +155,31 @@ def returnCallToDiscord(token, message):
   headers = {"content-type":"application/json"}
   json = {"content":message}
   r = requests.patch(url, headers = headers, json = json)
-  print(r.text)
+  print(f"Discord returns {r.text}")
   
 def lambda_handler(event, context):
   body = event.get('body-json')
-  print(body)
+  print(f"Body: {body}")
 
   # collect some initial info
   token = getToken(body)
-  gamertag = getGamertag(body)
-  command = getCommand(body)
+  args = {}
+  args["gamertag"] = getGamertag(body)
+  args["command"] = getCommand(body)
+  args["game"] = getGame(body)
+  args["gameVariant"] = getGameVariant(body)
 
   # confirm stats exist
-  apiCheck = callStats(gamertag)
-  print(apiCheck)
-  if "403" in str(apiCheck[0]):
+  args["apiCheck"] = callStats(args["gamertag"])
+  if "403" in str(args["apiCheck"][0]):
     message = f"**gamertag**: {gamertag} not found. Check your spelling, you airheaded, dim-witted vegetable."
-  elif "has not played" in json.loads(apiCheck[1])["gamertag"]:
+  elif "has not played" in json.loads(args["apiCheck"][1])["gamertag"]:
     message = '**gamertag**: ' + gamertag + ' has never played Halo: MCC or their profile is set to private. If this is you, you can fix it by going to your Xbox Live privacy settings and setting "Others can see your game and app history" to "Everyone"'
 
   # main body
-  elif "200" in str(apiCheck[0]):
-    print(f"{gamertag} found")
-    print(gamertag, command)
-    message = processRequest(command, gamertag)
+  elif "200" in str(args["apiCheck"][0]):
+    print(f"Passing {args}")
+    message = processRequest(args)
 
   else:
     message = "Unknown technical error."

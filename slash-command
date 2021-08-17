@@ -11,6 +11,112 @@ json = {
             "name": "gamertag",
             "description": "Defaults to Discord username",
             "type": 3
+        },
+        {
+            "name": "game",
+            "description": "Defaults to Discord username",
+            "type": 3,
+            "choices": [
+              {
+                "name": "Halo CE",
+                "value": "Halo: CE"
+              },
+              {
+                "name": "Halo 2C",
+                "value": "Halo 2"
+              },
+              {
+                "name": "Halo 2A",
+                "value": "Halo 2: Anniversary"
+              },
+              {
+                "name": "Halo 3",
+                "value": "Halo 3"
+              },
+              {
+                "name": "Halo: Reach",
+                "value": "Halo: Reach"
+              },
+              {
+                "name": "Halo 4",
+                "value": "Halo 4"
+              }
+            ]
+        },
+        {
+            "name": "variant",
+            "description": "Defaults to Discord username",
+            "type": 3,
+            "choices": [
+              {
+                "name": "Slayer",
+                "value": "Slayer"
+              },
+              {
+                "name": "CTF",
+                "value": "CTF"
+              },
+              {
+                "name": "Oddball",
+                "value": "Oddball"
+              },
+              {
+                "name": "KOTH",
+                "value": "KOTH"
+              },
+              {
+                "name": "Juggernaut",
+                "value": "Juggernaut"
+              },
+              {
+                "name": "Infection",
+                "value": "Infection"
+              },
+              {
+                "name": "Flood",
+                "value": "Flood"
+              },
+              {
+                "name": "Race",
+                "value": "Race"
+              },
+              {
+                "name": "Extraction",
+                "value": "Extraction"
+              },
+              {
+                "name": "Dominion",
+                "value": "Dominion"
+              },
+              {
+                "name": "Regicide",
+                "value": "Regicide"
+              },
+              {
+                "name": "Grifball",
+                "value": "Grifball"
+              },
+              {
+                "name": "Ricochet",
+                "value": "Ricochet"
+              },
+              {
+                "name": "Forge",
+                "value": "Forge"
+              },
+              {
+                "name": "VIP",
+                "value": "VIP"
+              },
+              {
+                "name": "Territories",
+                "value": "Territories"
+              },
+              {
+                "name": "Assault",
+                "value": "Assault"
+              }
+            ]
         }
     ]
 }
